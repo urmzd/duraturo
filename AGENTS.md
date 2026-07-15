@@ -51,7 +51,7 @@ Full guide: `docs/architecture/overview.md`. Discover layout with `tree` or ripg
 
 ## Releases
 
-sr tags the root and each adapter independently per `sr.yaml`. The adapters' `go.mod` files use `replace github.com/urmzd/duraturo => ../..` until the first tag; after v0.1.0, pin real versions and drop the replace.
+sr versions the root and adapters together per `sr.yaml`, cutting one `vX.Y.Z` tag (no per-module `adapters/...` tags, so external consumers of the adapter modules resolve pseudo-versions). The adapters' `go.mod` files pin the released root version and keep `replace github.com/urmzd/duraturo => ../..` for in-repo development; downstream consumers ignore the replace and resolve the pinned require. Bump the pin when a release changes the core contracts.
 
 ## Extension Guide
 
