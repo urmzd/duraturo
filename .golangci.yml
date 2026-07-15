@@ -1,0 +1,15 @@
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      # Best-effort calls where the error is intentionally discarded:
+      # cleanup paths and writes to in-memory/HTTP response writers.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - os.Remove
+        - os.RemoveAll
+        - (io.ReadCloser).Close
+        - (*os.File).Close

@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  lint:
+    name: Lint (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [".", "adapters/postgres", "adapters/redis"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          working-directory: ${{ matrix.module }}
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+
+  build:
+    name: Build (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - adapters/postgres
+          - adapters/redis
+          - examples/quickstart
+          - examples/chaos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+        working-directory: ${{ matrix.module }}
+
+  integration:
+    name: Integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: duraturo
+          POSTGRES_PASSWORD: duraturo
+          POSTGRES_DB: duraturo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U duraturo"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 30
+    env:
+      DURATURO_POSTGRES_URL: postgres://duraturo:duraturo@localhost:5432/duraturo?sslmode=disable
+      DURATURO_REDIS_ADDR: localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Apply quickstart schema
+        run: psql "$DURATURO_POSTGRES_URL" -f examples/quickstart/schema.sql
+      - name: Postgres adapter
+        run: go test -tags=integration ./...
+        working-directory: adapters/postgres
+      - name: Redis adapter
+        run: go test -tags=integration ./...
+        working-directory: adapters/redis
+      - name: Chaos example
+        run: go test -tags=integration ./...
+        working-directory: examples/chaos
