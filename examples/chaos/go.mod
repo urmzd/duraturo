@@ -5,7 +5,7 @@ go 1.26.4
 require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/redis/go-redis/v9 v9.21.0
-	github.com/urmzd/duraturo v0.0.0
+	github.com/urmzd/duraturo v0.1.0
 	github.com/urmzd/duraturo/adapters/postgres v0.0.0
 	github.com/urmzd/duraturo/adapters/redis v0.0.0
 )
